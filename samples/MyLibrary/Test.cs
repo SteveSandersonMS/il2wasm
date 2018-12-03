@@ -6,12 +6,22 @@ namespace MyLibrary
     {
         public static int Run()
         {
-            return (GetNumber(5, 2) + GetNumber(8, -1)) * -1;
+            switch (GetNumber())
+            {
+                case 1:
+                    return -1;
+                case 2:
+                    return -2;
+                case 3:
+                    return -3;
+                default:
+                    return 123;
+            }
         }
 
-        static int GetNumber(int num, int multiplyBy)
+        static int GetNumber()
         {
-            return num * multiplyBy;
+            return 0;
         }
     }
 }
