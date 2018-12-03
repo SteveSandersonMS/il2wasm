@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using Mono.Cecil;
-using WebAssembly;
 using CILCode = Mono.Cecil.Cil.Code;
 
 namespace il2wasm
@@ -10,7 +9,7 @@ namespace il2wasm
     {
         public static void Compile(string source, string dest)
         {
-            var sourceModule = Mono.Cecil.AssemblyDefinition.ReadAssembly(source).MainModule;
+            var sourceModule = AssemblyDefinition.ReadAssembly(source).MainModule;
 
             var wasmModule = CompileToWasm(sourceModule);
             using (var fs = File.Create(dest))
@@ -78,6 +77,7 @@ namespace il2wasm
         private static void CompileInstruction(Mono.Cecil.Cil.Instruction ilInstruction, WasmModuleBuilder moduleBuilder, WasmFunctionBuilder wasmFunction)
         {
             Console.WriteLine($"> Opcode {ilInstruction.OpCode}");
+
             var instructions = wasmFunction.Instructions;
             switch (ilInstruction.OpCode.Code)
             {

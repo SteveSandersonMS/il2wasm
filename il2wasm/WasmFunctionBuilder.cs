@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using WebAssembly;
 using System;
-using System.Linq;
 
 namespace il2wasm
 {
@@ -12,7 +11,8 @@ namespace il2wasm
         public List<Instruction> Instructions { get; }
         public List<Local> Locals { get; }
         public List<WebAssembly.ValueType> ParameterTypes { get; }
-        public WebAssembly.ValueType? ResultType;
+        public WebAssembly.ValueType? ResultType { get; set; }
+
         private readonly Dictionary<string, (uint, WebAssembly.ValueType)> _localsByName;
 
         public WasmFunctionBuilder(string name, WasmModuleBuilder wasmBuilder)
