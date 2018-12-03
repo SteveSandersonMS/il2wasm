@@ -1,0 +1,4 @@
+bin/
+obj/
+.vs/
+samples/MyWebHost/wwwroot/*.wasm
