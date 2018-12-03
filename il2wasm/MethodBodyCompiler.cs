@@ -114,6 +114,12 @@ namespace il2wasm
                         yield return new Int32LessThanSigned();
                         break;
                     }
+                case CILCode.Cgt:
+                    {
+                        // TODO: Get correct type
+                        yield return new Int32GreaterThanSigned();
+                        break;
+                    }
                 case CILCode.Ldarg_0:
                     {
                         yield return GetLocalInstruction(functionBuilder, "arg0");
@@ -209,6 +215,12 @@ namespace il2wasm
                     {
                         // TODO: Determine correct type
                         yield return new Int32Multiply();
+                        break;
+                    }
+                case CILCode.Starg_S:
+                    {
+                        var argIndex = ((ParameterDefinition)ilInstruction.Operand).Index;
+                        yield return StoreLocalInstruction(functionBuilder, $"arg{argIndex}");
                         break;
                     }
                 case CILCode.Stloc_0:

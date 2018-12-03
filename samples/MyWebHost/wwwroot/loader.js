@@ -10,8 +10,8 @@
     const moduleInstance = await instantiateWasmModule('MyLibrary.wasm');
     console.log(`Exports: ${ Object.getOwnPropertyNames(moduleInstance.exports) }`);
 
-    const fnToInvoke = moduleInstance.exports['System.Int32 MyLibrary.Test::Run()'];
-    console.log(fnToInvoke());
+    const fnToInvoke = moduleInstance.exports['System.Int32 MyLibrary.Test::Run(System.Int32)'];
+    console.log(fnToInvoke(100));
   }
 
   start();

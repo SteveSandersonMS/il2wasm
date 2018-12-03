@@ -4,19 +4,19 @@ namespace MyLibrary
 {
     public static class Test
     {
-        public static int Run()
+        public static int Run(int myArg)
         {
-            switch (GetNumber())
+            if (GetNumber() < 10)
             {
-                case 1:
-                    return -1;
-                case 2:
-                    return -2;
-                case 3:
-                    return -3;
-                default:
-                    return 123;
+                myArg--;
             }
+
+            if (GetNumber() > 100)
+            {
+                myArg++;
+            }
+
+            return myArg * 2;
         }
 
         static int GetNumber()
