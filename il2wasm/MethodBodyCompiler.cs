@@ -26,9 +26,16 @@ namespace il2wasm
         {
             var result = new List<Instruction>();
 
-            if (sourceMethod.HasBody)
+            if (!sourceMethod.HasBody)
+            {
+                result.Add(new End());
+            }
+            else
             {
                 var jumpTargets = new FlowAnalysis(sourceMethod.Body).JumpTargetOffsets;
+
+                result.Add(new Loop());
+
                 var nextJumpTargetIndex = 0;
                 var nextJumpTargetOffset = jumpTargets.Count > 0 ? (int?)jumpTargets[0] : null;
                 Func<Mono.Cecil.Cil.Instruction, uint> getBreakDepth = (Mono.Cecil.Cil.Instruction instruction) =>
@@ -37,7 +44,19 @@ namespace il2wasm
                     {
                         if (jumpTargets[targetIndex] == instruction.Offset)
                         {
-                            return (uint)(targetIndex - nextJumpTargetIndex);
+                            var depth = targetIndex - nextJumpTargetIndex;
+                            if (depth >= 0)
+                            {
+                                // Forward jump
+                                return (uint)depth;
+                            }
+                            else
+                            {
+                                // Backward jump
+                                result.Add(new Int32Constant(targetIndex + 1));
+                                result.Add(StoreLocalInstruction(functionBuilder, "jumpTarget"));
+                                return (uint)(jumpTargets.Count - nextJumpTargetIndex);
+                            }
                         }
                     }
 
@@ -49,6 +68,12 @@ namespace il2wasm
                 {
                     result.Add(new Block());
                 }
+
+                // Jump table for backward jumps
+                result.Add(new Block());
+                result.Add(GetLocalInstruction(functionBuilder, "jumpTarget"));
+                result.Add(new BranchTable(/* not used */ 0, Enumerable.Range(0, jumpTargets.Count - 1).Select(x => (uint)x).ToList()));
+                result.Add(new End());
 
                 foreach (var ilInstruction in sourceMethod.Body.Instructions)
                 {
@@ -62,9 +87,27 @@ namespace il2wasm
 
                     result.AddRange(CompileInstruction(ilInstruction, wasmBuilder, functionBuilder, getBreakDepth));
                 }
+
+                while (nextJumpTargetIndex < jumpTargets.Count)
+                {
+                    result.Add(new End());
+                    nextJumpTargetIndex++;
+                }
+
+                result.Add(new End()); // Loop
+
+                // Although the control flow will never reach this (because .NET always includes an
+                // explicit "ret" instruction), we have to put a fake return value on the stack at
+                // the end, otherwise the WASM function will be invalid, because the static analyzer
+                // won't realise we can't get here.
+                if (functionBuilder.ResultType.HasValue)
+                {
+                    // TODO: Use correct type to match functionBuilder.ResultType
+                    result.Add(new Int32Constant(-1));
+                    result.Add(new End());
+                }
             }
 
-            result.Add(new End());
             return result;
         }
 
