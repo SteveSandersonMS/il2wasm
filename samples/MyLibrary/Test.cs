@@ -6,17 +6,12 @@ namespace MyLibrary
     {
         public static int Run(int myArg)
         {
-            if (GetNumber() < 10)
+            if (myArg == 123)
             {
                 myArg--;
             }
 
-            if (GetNumber() > 100)
-            {
-                myArg++;
-            }
-
-            return myArg * 2;
+            return myArg;
         }
 
         static int GetNumber()

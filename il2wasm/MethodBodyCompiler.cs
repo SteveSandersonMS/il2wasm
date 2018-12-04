@@ -108,6 +108,12 @@ namespace il2wasm
                         yield return new Call(targetWasmFuncIndex);
                         break;
                     }
+                case CILCode.Ceq:
+                    {
+                        // TODO: Get correct type
+                        yield return new Int32Equal();
+                        break;
+                    }
                 case CILCode.Clt:
                     {
                         // TODO: Get correct type

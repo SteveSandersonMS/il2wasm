@@ -40,11 +40,19 @@ namespace il2wasm
             {
                 var block = blocks[blockIndex];
                 var stackTopBlock = blockStack.Peek();
-                
+
+                while (block.EndIndexExcl <= stackTopBlock.StartIndexIncl)
+                {
+                    // This block is disjoint from stackTopBlock - it's completely before it
+                    blockStack.Pop();
+                    stackTopBlock = blockStack.Peek();
+                }
+
                 if (block.StartIndexIncl >= stackTopBlock.StartIndexIncl
                     && block.EndIndexExcl <= stackTopBlock.EndIndexExcl)
                 {
                     stackTopBlock.Children.Add(block);
+                    stackTopBlock.Children.Sort((lhs, rhs) => lhs.StartIndexIncl - rhs.StartIndexIncl);
                     blockStack.Push(block);
                 }
                 else
