@@ -94,10 +94,23 @@ namespace il2wasm
                         yield return new BranchIf(breakFromBlockDepth);
                         break;
                     }
+                case CILCode.Brtrue_S:
+                    {
+                        var breakFromBlockDepth = GetBreakDepth((Mono.Cecil.Cil.Instruction)ilInstruction.Operand, openBlocks);
+                        yield return new BranchIf(breakFromBlockDepth);
+                        break;
+                    }
                 case CILCode.Beq_S:
                     {
                         var breakFromBlockDepth = GetBreakDepth((Mono.Cecil.Cil.Instruction)ilInstruction.Operand, openBlocks);
                         yield return new Int32Equal();
+                        yield return new BranchIf(breakFromBlockDepth);
+                        break;
+                    }
+                case CILCode.Bgt_S:
+                    {
+                        var breakFromBlockDepth = GetBreakDepth((Mono.Cecil.Cil.Instruction)ilInstruction.Operand, openBlocks);
+                        yield return new Int32GreaterThanSigned();
                         yield return new BranchIf(breakFromBlockDepth);
                         break;
                     }
