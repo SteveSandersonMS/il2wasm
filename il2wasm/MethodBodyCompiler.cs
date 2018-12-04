@@ -182,6 +182,14 @@ namespace il2wasm
                         yield return new Int32GreaterThanSigned();
                         break;
                     }
+                case CILCode.Dup:
+                    {
+                        // TODO: Get correct type
+                        yield return StoreLocalInstruction(functionBuilder, "dupTemp");
+                        yield return GetLocalInstruction(functionBuilder, "dupTemp");
+                        yield return GetLocalInstruction(functionBuilder, "dupTemp");
+                        break;
+                    }
                 case CILCode.Ldarg_0:
                     {
                         yield return GetLocalInstruction(functionBuilder, "arg0");
@@ -205,6 +213,11 @@ namespace il2wasm
                 case CILCode.Ldloc_2:
                     {
                         yield return GetLocalInstruction(functionBuilder, "loc2");
+                        break;
+                    }
+                case CILCode.Ldloc_3:
+                    {
+                        yield return GetLocalInstruction(functionBuilder, "loc3");
                         break;
                     }
                 case CILCode.Ldc_I4:
@@ -267,6 +280,12 @@ namespace il2wasm
                         yield return new Int32Constant(-1);
                         break;
                     }
+                case CILCode.Ldloc_S:
+                    {
+                        var locIndex = ((Mono.Cecil.Cil.VariableDefinition)ilInstruction.Operand).Index;
+                        yield return GetLocalInstruction(functionBuilder, $"loc{locIndex}");
+                        break;
+                    }
                 case CILCode.Neg:
                     {
                         yield return new Int32Constant(-1);
@@ -277,6 +296,12 @@ namespace il2wasm
                     {
                         // TODO: Determine correct type
                         yield return new Int32Multiply();
+                        break;
+                    }
+                case CILCode.Rem:
+                    {
+                        // TODO: Determine correct type
+                        yield return new Int32RemainderSigned();
                         break;
                     }
                 case CILCode.Starg_S:
@@ -298,6 +323,17 @@ namespace il2wasm
                 case CILCode.Stloc_2:
                     {
                         yield return StoreLocalInstruction(functionBuilder, "loc2");
+                        break;
+                    }
+                case CILCode.Stloc_3:
+                    {
+                        yield return StoreLocalInstruction(functionBuilder, "loc3");
+                        break;
+                    }
+                case CILCode.Stloc_S:
+                    {
+                        var locIndex = ((Mono.Cecil.Cil.VariableDefinition)ilInstruction.Operand).Index;
+                        yield return StoreLocalInstruction(functionBuilder, $"loc{locIndex}");
                         break;
                     }
                 case CILCode.Sub:

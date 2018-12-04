@@ -65,6 +65,7 @@ namespace il2wasm
             {
                 case "System.Void": return null;
                 case "System.Int32": return WebAssembly.ValueType.Int32;
+                case "System.Boolean": return WebAssembly.ValueType.Int32;
                 default: throw new ArgumentException($"Unsupported .NET type: {dotNetType.FullName}");
             }
         }

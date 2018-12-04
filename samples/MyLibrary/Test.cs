@@ -6,21 +6,34 @@ namespace MyLibrary
     {
         public static int Run(int myArg)    
         {
-            if (myArg == 123)
-            {
-                myArg--;
-            }
-            else
-            {
-                myArg++;
-            }
-
-            return myArg;
+            return GetNthPrime(myArg);
         }
 
-        static int GetNumber()
+        static int GetNthPrime(int n)
         {
-            return 0;
+            var current = 1;
+            for (var i = 0; i < n; i++)
+            {
+                current++;
+                while (!IsPrime(current))
+                {
+                    current++;
+                }
+            }
+            return current;
+        }
+
+        static bool IsPrime(int value)
+        {
+            for (var possibleDivisor = 2; possibleDivisor < value; possibleDivisor++)
+            {
+                if ((value % possibleDivisor) == 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }
