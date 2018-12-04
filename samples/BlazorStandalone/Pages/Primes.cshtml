@@ -1,0 +1,31 @@
+﻿@page "/primes"
+
+<h1>Primes</h1>
+
+<p>
+    Get Nth prime: <input type="number" bind=@n />
+    <button class="btn btn-primary" onclick="@Compute">Compute</button>
+</p>
+
+<p>
+    Output:
+    <pre>@log</pre>
+</p>
+
+@functions {
+    int n = 10;
+    string log;
+
+    void Compute()
+    {
+        var start = DateTime.Now;
+
+        // TODO: Implement build mechanism such that, if the <ProjectReference> to MyLibrary
+        // has an "aot" flag, then we run the AOT compiler for it, and generate a wrapper .NET
+        // assembly that contains the JSInterop calls to the .wasm.
+        var result = MyLibrary.Test.Run(n);
+
+        var duration = (DateTime.Now - start).TotalMilliseconds;
+        log += $"\nThe {n}th prime is: {result} (time: {duration}ms)";
+    }
+}
