@@ -4,11 +4,15 @@ namespace MyLibrary
 {
     public static class Test
     {
-        public static int Run(int myArg)
+        public static int Run(int myArg)    
         {
             if (myArg == 123)
             {
                 myArg--;
+            }
+            else
+            {
+                myArg++;
             }
 
             return myArg;

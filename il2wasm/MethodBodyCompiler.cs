@@ -28,39 +28,39 @@ namespace il2wasm
 
             if (sourceMethod.HasBody)
             {
-                var flow = new FlowAnalysis(sourceMethod.Body);
-                var blockStack = new Stack<FlowAnalysis.Block>();
-                var currentBlock = flow.RootBlock;
-                var nextChildBlock = RemoveFirstOrDefault(flow.RootBlock.Children);
-                blockStack.Push(currentBlock);
-
-                foreach (var ilInstruction in sourceMethod.Body.Instructions)
+                var jumpTargets = new FlowAnalysis(sourceMethod.Body).JumpTargetOffsets;
+                var nextJumpTargetIndex = 0;
+                var nextJumpTargetOffset = jumpTargets.Count > 0 ? (int?)jumpTargets[0] : null;
+                Func<Mono.Cecil.Cil.Instruction, uint> getBreakDepth = (Mono.Cecil.Cil.Instruction instruction) =>
                 {
-                    while (true)
+                    for (var targetIndex = 0; targetIndex < jumpTargets.Count; targetIndex++)
                     {
-                        if (nextChildBlock != null && nextChildBlock.Contains(ilInstruction.Offset))
+                        if (jumpTargets[targetIndex] == instruction.Offset)
                         {
-                            // Enter child block
-                            result.Add(new Block());
-                            currentBlock = nextChildBlock;
-                            nextChildBlock = RemoveFirstOrDefault(currentBlock.Children);
-                            blockStack.Push(currentBlock);
-                        }
-                        else if (!currentBlock.Contains(ilInstruction.Offset))
-                        {
-                            // Exit this block
-                            result.Add(new End());
-                            blockStack.Pop();
-                            currentBlock = blockStack.Peek();
-                            nextChildBlock = RemoveFirstOrDefault(currentBlock.Children);
-                        }
-                        else
-                        {
-                            break;
+                            return (uint)(targetIndex - nextJumpTargetIndex);
                         }
                     }
 
-                    result.AddRange(CompileInstruction(ilInstruction, wasmBuilder, functionBuilder, blockStack));
+                    throw new ArgumentException($"No available jump target with offset {instruction.Offset}");
+                };
+
+                // Open all the nested blocks that start at the top of the function
+                for (var openBlockIndex = 0; openBlockIndex < jumpTargets.Count; openBlockIndex++)
+                {
+                    result.Add(new Block());
+                }
+
+                foreach (var ilInstruction in sourceMethod.Body.Instructions)
+                {
+                    if (ilInstruction.Offset >= nextJumpTargetOffset)
+                    {
+                        result.Add(new End());
+                        nextJumpTargetOffset = (jumpTargets.Count > ++nextJumpTargetIndex)
+                            ? (int?)jumpTargets[nextJumpTargetIndex]
+                            : null;
+                    }
+
+                    result.AddRange(CompileInstruction(ilInstruction, wasmBuilder, functionBuilder, getBreakDepth));
                 }
             }
 
@@ -68,7 +68,7 @@ namespace il2wasm
             return result;
         }
 
-        private static IEnumerable<Instruction> CompileInstruction(Mono.Cecil.Cil.Instruction ilInstruction, WasmModuleBuilder wasmBuilder, WasmFunctionBuilder functionBuilder, Stack<FlowAnalysis.Block> openBlocks)
+        private static IEnumerable<Instruction> CompileInstruction(Mono.Cecil.Cil.Instruction ilInstruction, WasmModuleBuilder wasmBuilder, WasmFunctionBuilder functionBuilder, Func<Mono.Cecil.Cil.Instruction, uint> getBreakDepth)
         {
             Console.WriteLine($"> Opcode {ilInstruction.OpCode}");
 
@@ -82,13 +82,13 @@ namespace il2wasm
                     }
                 case CILCode.Br_S:
                     {
-                        var breakFromBlockDepth = GetBreakDepth((Mono.Cecil.Cil.Instruction)ilInstruction.Operand, openBlocks);
+                        var breakFromBlockDepth = getBreakDepth((Mono.Cecil.Cil.Instruction)ilInstruction.Operand);
                         yield return new Branch(breakFromBlockDepth);
                         break;
                     }
                 case CILCode.Brfalse_S:
                     {
-                        var breakFromBlockDepth = GetBreakDepth((Mono.Cecil.Cil.Instruction)ilInstruction.Operand, openBlocks);
+                        var breakFromBlockDepth = getBreakDepth((Mono.Cecil.Cil.Instruction)ilInstruction.Operand);
                         yield return new Int32Constant(1);
                         yield return new Int32Subtract();
                         yield return new BranchIf(breakFromBlockDepth);
@@ -96,20 +96,20 @@ namespace il2wasm
                     }
                 case CILCode.Brtrue_S:
                     {
-                        var breakFromBlockDepth = GetBreakDepth((Mono.Cecil.Cil.Instruction)ilInstruction.Operand, openBlocks);
+                        var breakFromBlockDepth = getBreakDepth((Mono.Cecil.Cil.Instruction)ilInstruction.Operand);
                         yield return new BranchIf(breakFromBlockDepth);
                         break;
                     }
                 case CILCode.Beq_S:
                     {
-                        var breakFromBlockDepth = GetBreakDepth((Mono.Cecil.Cil.Instruction)ilInstruction.Operand, openBlocks);
+                        var breakFromBlockDepth = getBreakDepth((Mono.Cecil.Cil.Instruction)ilInstruction.Operand);
                         yield return new Int32Equal();
                         yield return new BranchIf(breakFromBlockDepth);
                         break;
                     }
                 case CILCode.Bgt_S:
                     {
-                        var breakFromBlockDepth = GetBreakDepth((Mono.Cecil.Cil.Instruction)ilInstruction.Operand, openBlocks);
+                        var breakFromBlockDepth = getBreakDepth((Mono.Cecil.Cil.Instruction)ilInstruction.Operand);
                         yield return new Int32GreaterThanSigned();
                         yield return new BranchIf(breakFromBlockDepth);
                         break;
@@ -274,7 +274,7 @@ namespace il2wasm
                             yield return new Int32Constant(itemIndex++);
                             yield return new Int32Equal();
 
-                            var breakFromBlockDepth = GetBreakDepth(target, openBlocks);
+                            var breakFromBlockDepth = getBreakDepth(target);
                             yield return new BranchIf(breakFromBlockDepth);
                         }
 
@@ -290,22 +290,6 @@ namespace il2wasm
                 default:
                     throw new ArgumentException($"Unsupported opcode: {ilInstruction.OpCode.Code}");
             }
-        }
-
-        private static uint GetBreakDepth(Mono.Cecil.Cil.Instruction jumpTarget, Stack<FlowAnalysis.Block> openBlocks)
-        {
-            uint depth = 0;
-            foreach (var block in openBlocks)
-            {
-                if (block.EndIndexExcl == jumpTarget.Offset - 1)
-                {
-                    return depth;
-                }
-
-                depth++;
-            }
-
-            throw new InvalidOperationException($"No open block ends just before offset {jumpTarget.Offset}");
         }
 
         private static Instruction StoreLocalInstruction(WasmFunctionBuilder functionBuilder, string localName)
