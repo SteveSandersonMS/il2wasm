@@ -1,9 +1,7 @@
 ﻿using System.Linq;
-using System.Collections;
 using System.Collections.Generic;
 using WebAssembly;
-using WebAssembly.Instructions;
-using Mono.Cecil;
+using System;
 
 namespace il2wasm
 {
@@ -13,8 +11,26 @@ namespace il2wasm
         private Dictionary<string, uint> _functionIndicesByName = new Dictionary<string, uint>();
         private SortedDictionary<uint, WasmFunctionBuilder> _functionBuildersByIndex = new SortedDictionary<uint, WasmFunctionBuilder>();
 
+        // This has to be read-only, because we need to know how many of them exist before we
+        // can assign any function indices
+        private readonly IReadOnlyList<StaticFunctionImport> _functionImports = new List<StaticFunctionImport>
+        {
+            new StaticFunctionImport("static", "System.Void System.Console::WriteLine(System.Int32)", null, WebAssembly.ValueType.Int32)
+        };
+
         public Module ToModule()
         {
+            foreach (var functionImport in _functionImports)
+            {
+                var typeIndex = AddType(functionImport.Parameters.ToList(), functionImport.ReturnType);
+                _module.Imports.Add(new Import.Function
+                {
+                    Module = functionImport.ModuleName,
+                    Field = functionImport.FieldName,
+                    TypeIndex = typeIndex
+                });
+            }
+
             foreach (var (fnIndex, fnBuilder) in _functionBuildersByIndex)
             {
                 var typeIndex = AddType(fnBuilder.ParameterTypes, fnBuilder.ResultType);
@@ -93,22 +109,31 @@ namespace il2wasm
             return exportIndex;
         }
 
-        private uint AddFunctionBody(WebAssembly.FunctionBody wasmFunctionBody)
-        {
-            var functionBodyIndex = (uint)_module.Codes.Count;
-            _module.Codes.Add(wasmFunctionBody);
-            return functionBodyIndex;
-        }
-
         public uint GetOrReserveFunctionIndex(string name)
         {
             if (!_functionIndicesByName.TryGetValue(name, out var index))
             {
-                index = (uint)_functionIndicesByName.Count;
+                // We have to reserve the first N slots for the static imports
+                // Unfortunately there's no way to interleave the imported functions with the self-defined ones
+                // Maybe there is in WebAssembly itself, but not in the .NET library we're using to generate the .wasm file
+                index = (uint)(_functionImports.Count + _functionIndicesByName.Count);
                 _functionIndicesByName.Add(name, index);
             }
 
             return index;
+        }
+
+        public uint GetStaticImportIndex(string fullName)
+        {
+            for (var i = 0; i < _functionImports.Count; i++)
+            {
+                if (_functionImports[i].FieldName == fullName)
+                {
+                    return (uint)i;
+                }
+            }
+
+            throw new ArgumentException($"No static function import for '{fullName}'");
         }
     }
 }

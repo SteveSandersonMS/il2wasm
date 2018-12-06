@@ -4,9 +4,14 @@ namespace MyLibrary
 {
     public static class Test
     {
-        public static int Run(int myArg)    
+        public static int Run(int myArg)
         {
-            return GetNthPrime(myArg);
+            for (var i = 0; i < 10; i++)
+            {
+                Console.WriteLine(GetNthPrime(myArg + i));
+            }
+
+            return 0;
         }
 
         static int GetNthPrime(int n)

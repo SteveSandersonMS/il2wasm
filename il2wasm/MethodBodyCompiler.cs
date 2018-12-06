@@ -159,9 +159,35 @@ namespace il2wasm
                     }
                 case CILCode.Call:
                     {
-                        var target = (MethodDefinition)ilInstruction.Operand;
-                        var targetWasmFuncIndex = wasmBuilder.GetOrReserveFunctionIndex(target.FullName);
-                        yield return new Call(targetWasmFuncIndex);
+                        switch (ilInstruction.Operand)
+                        {
+                            case MethodDefinition targetDefinition:
+                                {
+                                    // Call to a method in the same assembly
+                                    var targetWasmFuncIndex = wasmBuilder.GetOrReserveFunctionIndex(targetDefinition.FullName);
+                                    yield return new Call(targetWasmFuncIndex);
+                                    break;
+                                }
+                            case MethodReference targetReference:
+                                {
+                                    // Call to a method in some other assembly
+                                    // Currently this assumes it always corresponds to a static function import
+                                    // TODO: Implement a way to call into a .NET function in the Mono WebAssembly interpreter
+                                    //       To do this, during this compilation process, generate a separate global variable
+                                    //       for each .NET method we want to reference. Also generate some kind of JSON manifest
+                                    //       describing the mapping from .NET method to global variable index. Then when loading
+                                    //       the .wasm module, first get Mono's function ID for each referenced .NET method and
+                                    //       use it to prepopulate the corresponding globals.
+                                    //       Then here we can call out to the static _mono_invoke_method (or whatever), passing
+                                    //       the Mono function ID from the corresponding global as well as the args. That way,
+                                    //       the calls don't have to go through JS at all.
+                                    var targetImportIndex = wasmBuilder.GetStaticImportIndex(targetReference.FullName);
+                                    yield return new Call(targetImportIndex);
+                                    break;
+                                }
+                            default:
+                                throw new ArgumentException($"Unknown call instruction operand type: {ilInstruction.Operand.GetType().FullName}");
+                        }
                         break;
                     }
                 case CILCode.Ceq:
