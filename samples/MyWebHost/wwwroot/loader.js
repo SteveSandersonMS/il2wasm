@@ -14,7 +14,7 @@
     console.log(`Exports: ${ Object.getOwnPropertyNames(moduleInstance.exports) }`);
 
     const fnToInvoke = moduleInstance.exports['System.Int32 MyLibrary.Test::Run(System.Int32)'];
-    console.log(fnToInvoke(2000));
+    fnToInvoke(2000);
   }
 
   start();
