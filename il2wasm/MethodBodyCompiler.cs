@@ -74,7 +74,7 @@ namespace il2wasm
                 {
                     result.Add(new Block());
                     result.Add(GetLocalInstruction(functionBuilder, "jumpTarget"));
-                    result.Add(new BranchTable(/* not used */ 0, Enumerable.Range(0, jumpTargets.Count - 1).Select(x => (uint)x).ToList()));
+                    result.Add(new BranchTable((uint)jumpTargets.Count, Enumerable.Range(0, jumpTargets.Count).Select(x => (uint)x).ToList()));
                     result.Add(new End());
                 }
 
