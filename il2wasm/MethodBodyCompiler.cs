@@ -470,7 +470,7 @@ namespace il2wasm
         {
             uint offset = 4; // Reserve first 4 bytes for type pointer (not currently implemented)
 
-            if (field.Offset > 0)
+            if (field.Offset >= 0)
             {
                 // Explicit struct layout
                 return offset + (uint)field.Offset;
