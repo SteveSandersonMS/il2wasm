@@ -15,11 +15,19 @@ namespace il2wasm
         // can assign any function indices
         private readonly IReadOnlyList<StaticFunctionImport> _functionImports = new List<StaticFunctionImport>
         {
+            new StaticFunctionImport("sys", "malloc", WebAssembly.ValueType.Int32, WebAssembly.ValueType.Int32),
             new StaticFunctionImport("static", "System.Void System.Console::WriteLine(System.Int32)", null, WebAssembly.ValueType.Int32)
         };
 
         public Module ToModule()
         {
+            _module.Imports.Add(new Import.Memory
+            {
+                Module = "sys",
+                Field = "memory",
+                Type = new Memory()
+            });
+
             foreach (var functionImport in _functionImports)
             {
                 var typeIndex = AddType(functionImport.Parameters.ToList(), functionImport.ReturnType);

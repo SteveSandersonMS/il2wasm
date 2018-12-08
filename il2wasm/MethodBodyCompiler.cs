@@ -70,10 +70,13 @@ namespace il2wasm
                 }
 
                 // Jump table for backward jumps
-                result.Add(new Block());
-                result.Add(GetLocalInstruction(functionBuilder, "jumpTarget"));
-                result.Add(new BranchTable(/* not used */ 0, Enumerable.Range(0, jumpTargets.Count - 1).Select(x => (uint)x).ToList()));
-                result.Add(new End());
+                if (jumpTargets.Count > 0)
+                {
+                    result.Add(new Block());
+                    result.Add(GetLocalInstruction(functionBuilder, "jumpTarget"));
+                    result.Add(new BranchTable(/* not used */ 0, Enumerable.Range(0, jumpTargets.Count - 1).Select(x => (uint)x).ToList()));
+                    result.Add(new End());
+                }
 
                 foreach (var ilInstruction in sourceMethod.Body.Instructions)
                 {
@@ -104,8 +107,9 @@ namespace il2wasm
                 {
                     // TODO: Use correct type to match functionBuilder.ResultType
                     result.Add(new Int32Constant(-1));
-                    result.Add(new End());
                 }
+
+                result.Add(new End());
             }
 
             return result;
@@ -158,6 +162,7 @@ namespace il2wasm
                         break;
                     }
                 case CILCode.Call:
+                case CILCode.Callvirt: // TODO: Implement Callvirt properly (do actual virtual dispatch)
                     {
                         switch (ilInstruction.Operand)
                         {
@@ -170,19 +175,27 @@ namespace il2wasm
                                 }
                             case MethodReference targetReference:
                                 {
-                                    // Call to a method in some other assembly
-                                    // Currently this assumes it always corresponds to a static function import
-                                    // TODO: Implement a way to call into a .NET function in the Mono WebAssembly interpreter
-                                    //       To do this, during this compilation process, generate a separate global variable
-                                    //       for each .NET method we want to reference. Also generate some kind of JSON manifest
-                                    //       describing the mapping from .NET method to global variable index. Then when loading
-                                    //       the .wasm module, first get Mono's function ID for each referenced .NET method and
-                                    //       use it to prepopulate the corresponding globals.
-                                    //       Then here we can call out to the static _mono_invoke_method (or whatever), passing
-                                    //       the Mono function ID from the corresponding global as well as the args. That way,
-                                    //       the calls don't have to go through JS at all.
-                                    var targetImportIndex = wasmBuilder.GetStaticImportIndex(targetReference.FullName);
-                                    yield return new Call(targetImportIndex);
+                                    if (targetReference.FullName == "System.Void System.Object::.ctor()")
+                                    {
+                                        // No-op - just drop the pointer to "this"
+                                        yield return new Drop();
+                                    }
+                                    else
+                                    {
+                                        // Call to a method in some other assembly
+                                        // Currently this assumes it always corresponds to a static function import
+                                        // TODO: Implement a way to call into a .NET function in the Mono WebAssembly interpreter
+                                        //       To do this, during this compilation process, generate a separate global variable
+                                        //       for each .NET method we want to reference. Also generate some kind of JSON manifest
+                                        //       describing the mapping from .NET method to global variable index. Then when loading
+                                        //       the .wasm module, first get Mono's function ID for each referenced .NET method and
+                                        //       use it to prepopulate the corresponding globals.
+                                        //       Then here we can call out to the static _mono_invoke_method (or whatever), passing
+                                        //       the Mono function ID from the corresponding global as well as the args. That way,
+                                        //       the calls don't have to go through JS at all.
+                                        var targetImportIndex = wasmBuilder.GetStaticImportIndex(targetReference.FullName);
+                                        yield return new Call(targetImportIndex);
+                                    }
                                     break;
                                 }
                             default:
@@ -224,6 +237,17 @@ namespace il2wasm
                 case CILCode.Ldarg_1:
                     {
                         yield return GetLocalInstruction(functionBuilder, "arg1");
+                        break;
+                    }
+                case CILCode.Ldarg_2:
+                    {
+                        yield return GetLocalInstruction(functionBuilder, "arg2");
+                        break;
+                    }
+                case CILCode.Ldfld:
+                    {
+                        var fieldOffset = GetFieldOffset((Mono.Cecil.FieldDefinition)ilInstruction.Operand);
+                        yield return new Int32Load { Offset = fieldOffset };
                         break;
                     }
                 case CILCode.Ldloc_0:
@@ -312,6 +336,33 @@ namespace il2wasm
                         yield return GetLocalInstruction(functionBuilder, $"loc{locIndex}");
                         break;
                     }
+                case CILCode.Newobj:
+                    {
+                        var ctor = (Mono.Cecil.MethodDefinition)ilInstruction.Operand;
+
+                        // Read all the params into locals so we can replay them after the new object address
+                        for (var paramIndex = 0; paramIndex < ctor.Parameters.Count; paramIndex++)
+                        {
+                            yield return StoreLocalInstruction(functionBuilder, $"ctorparam{ctor.Parameters.Count - 1 - paramIndex}");
+                        }
+
+                        // Allocate memory
+                        yield return new Int32Constant(GetTypeHeapSize(ctor.DeclaringType));
+                        yield return new Call(wasmBuilder.GetStaticImportIndex("malloc"));
+                        yield return StoreLocalInstruction(functionBuilder, "newObjectAddr");
+
+                        // Invoke constructor
+                        var targetWasmFuncIndex = wasmBuilder.GetOrReserveFunctionIndex(ctor.FullName);
+                        yield return GetLocalInstruction(functionBuilder, "newObjectAddr");
+                        for (var paramIndex = 0; paramIndex < ctor.Parameters.Count; paramIndex++)
+                        {
+                            yield return GetLocalInstruction(functionBuilder, $"ctorparam{paramIndex}");
+                        }
+                        yield return new Call(targetWasmFuncIndex);
+
+                        yield return GetLocalInstruction(functionBuilder, "newObjectAddr");
+                        break;
+                    }
                 case CILCode.Neg:
                     {
                         yield return new Int32Constant(-1);
@@ -324,6 +375,11 @@ namespace il2wasm
                         yield return new Int32Multiply();
                         break;
                     }
+                case CILCode.Pop:
+                    {
+                        yield return new Drop();
+                        break;
+                    }
                 case CILCode.Rem:
                     {
                         // TODO: Determine correct type
@@ -334,6 +390,12 @@ namespace il2wasm
                     {
                         var argIndex = ((ParameterDefinition)ilInstruction.Operand).Index;
                         yield return StoreLocalInstruction(functionBuilder, $"arg{argIndex}");
+                        break;
+                    }
+                case CILCode.Stfld:
+                    {
+                        var fieldOffset = GetFieldOffset((Mono.Cecil.FieldDefinition)ilInstruction.Operand);
+                        yield return new Int32Store { Offset = fieldOffset };
                         break;
                     }
                 case CILCode.Stloc_0:
@@ -395,6 +457,44 @@ namespace il2wasm
                 default:
                     throw new ArgumentException($"Unsupported opcode: {ilInstruction.OpCode.Code}");
             }
+        }
+
+        private static uint GetFieldOffset(Mono.Cecil.FieldDefinition field)
+        {
+            uint offset = 4; // Reserve first 4 bytes for type pointer (not currently implemented)
+
+            if (field.Offset > 0)
+            {
+                // Explicit struct layout
+                return offset + (uint)field.Offset;
+            }
+
+            foreach (var typeField in field.DeclaringType.Fields)
+            {
+                if (typeField == field)
+                {
+                    return offset;
+                }
+
+                offset += GetTypeStackSize(typeField.FieldType);
+            }
+
+            throw new InvalidOperationException($"Somehow, field {field.FullName} was not declared on its declaring type.");
+        }
+
+        private static uint GetTypeStackSize(Mono.Cecil.TypeReference field)
+        {
+            return (uint)4; // TODO
+        }
+
+        private static uint GetTypeHeapSize(TypeDefinition declaringType)
+        {
+            uint total = 4; // Reserve first 4 bytes for type pointer (not currently implemented)
+            foreach (var typeField in declaringType.Fields)
+            {
+                total += GetTypeStackSize(typeField.FieldType);
+            }
+            return total;
         }
 
         private static Instruction StoreLocalInstruction(WasmFunctionBuilder functionBuilder, string localName)

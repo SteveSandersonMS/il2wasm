@@ -11,20 +11,34 @@ namespace MyLibrary
                 Console.WriteLine(GetNthPrime(myArg + i));
             }
 
-            return 0;
+            return 0; // person.Age;
         }
-
+        
         static int GetNthPrime(int n)
         {
-            var current = 1;
-            for (var i = 0; i < n; i++)
+            var primeCalculator = new PrimeCalculator();
+
+            for (var i = 0; i < n - 1; i++)
+            {
+                primeCalculator.ComputeNextPrime();
+            }
+
+            return primeCalculator.ComputeNextPrime();
+        }
+    }
+
+    class PrimeCalculator
+    {
+        private int current = 1;
+
+        public int ComputeNextPrime()
+        {
+            do
             {
                 current++;
-                while (!IsPrime(current))
-                {
-                    current++;
-                }
             }
+            while (!IsPrime(current));
+
             return current;
         }
 

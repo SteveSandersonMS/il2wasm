@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using Mono.Cecil;
 
 namespace il2wasm
@@ -46,10 +47,15 @@ namespace il2wasm
                 ResultType = ToWebAssemblyType(sourceMethod.ReturnType)
             };
 
-            var paramIndex = 0;
-            foreach (var ilParam in sourceMethod.Parameters)
+            var paramTypes = sourceMethod.Parameters.Select(p => ToWebAssemblyType(p.ParameterType).Value);
+            if (sourceMethod.HasThis)
             {
-                var paramType = ToWebAssemblyType(ilParam.ParameterType).Value;
+                paramTypes = paramTypes.Prepend(WebAssembly.ValueType.Int32); // "this"
+            }
+
+            var paramIndex = 0;
+            foreach (var paramType in paramTypes)
+            {
                 fn.AddParameter(paramType);
                 fn.GetLocalIndex($"arg{paramIndex}", paramType);
                 paramIndex++;
