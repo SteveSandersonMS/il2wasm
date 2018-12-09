@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <PackageReference Include="Mono.Cecil" Version="0.10.1" />
+    <PackageReference Include="Mono.WebAssembly.Interop" Version="0.7.0" />
     <PackageReference Include="WebAssembly" Version="0.3.5-preview" />
   </ItemGroup>
 
