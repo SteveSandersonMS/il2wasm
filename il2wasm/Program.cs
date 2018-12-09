@@ -5,13 +5,21 @@ namespace il2wasm
 {
     class Program
     {
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
-            var root = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), @"..\..\..\..\samples"));
-            var source = Path.Combine(root, @"MyLibrary\bin\Debug\netstandard2.0\MyLibrary.dll");
-            var dest = Path.Combine(root, @"MyWebHost\wwwroot\MyLibrary.wasm");
+            if (args.Length < 3)
+            {
+                Console.Error.WriteLine($"Usage: dotnet exec {args[0]} -- <sourceassembly> <outputfile>");
+                return 1;
+            }
 
+            var source = args[1];
+            var dest = args[2];
+
+            Directory.CreateDirectory(Path.GetDirectoryName(dest));
             Compiler.Compile(source, dest);
+
+            return 0;
         }
     }
 }
