@@ -3,7 +3,7 @@
 // startup code automatically load the references .wasm files and wire them up
 // at the right time.
 (function () {
-  let invoke_method;
+  let assembly_load, find_class, invoke_method, mono_wasm_object_new;
 
   function callInterpreterMethod(methodHandle, targetPtr, args) {
       if (args.length > 4) {
@@ -47,11 +47,31 @@
 
     // Get the list of .NET methods it imports from other assemblies
     invoke_method = Module.cwrap('mono_wasm_invoke_method', 'number', ['number', 'number', 'number']);
+    assembly_load = Module.cwrap('mono_wasm_assembly_load', 'number', ['string']);
+    find_class = Module.cwrap('mono_wasm_assembly_find_class', 'number', ['number', 'string', 'string']);
+    mono_wasm_object_new = Module.cwrap('mono_wasm_object_new', 'number', ['number']);
     const declaredStaticImports = WebAssembly.Module.imports(module)
       .filter(x => x.kind === 'function' && x.module === 'static')
       .map(x => {
         const tokens = x.name.split('|');
         return { identifier: x.name, assemblyName: tokens[0], typeName: tokens[1], methodNameWithSignature: tokens[2] };
+      });
+
+    // Get a list of .NET types it needs type handles for
+    const globalImportsForTypes = {};
+    WebAssembly.Module.imports(module)
+      .filter(x => x.kind === 'global' && x.module === 'dotnet' && x.name.startsWith('type:'))
+      .map(x => {
+        const tokens = x.name.substring('type:'.length).split('|');
+        const assemblyName = tokens[0].replace(/\.dll$/, '');
+        const lastDot = tokens[1].lastIndexOf('.');
+        const namespace = tokens[1].substring(0, lastDot);
+        const typeName = tokens[1].substring(lastDot + 1);
+        const assemblyHandle = assembly_load(assemblyName);
+        const typeHandle = find_class(assemblyHandle, namespace, typeName);
+        if (typeHandle) {
+          globalImportsForTypes[x.name] = typeHandle;
+        }
       });
 
     // Build an imports object by providing a thunk that can call the interpreter for each imported method
@@ -67,17 +87,12 @@
     });
 
     const memory = Module.wasmMemory; // Share same memory as Mono interpreter
-    let nextHeapObjectAddr = 0;
     return await WebAssembly.instantiate(module, {
       sys: {
-        malloc: numBytes => {
-          // TODO: Don't just corrupt the Mono heap like this. Replace this 'malloc' with a 'createUninitalizedObject(Type)' that calls Mono (so we alloc real objects that can later be GCed)
-          const result = nextHeapObjectAddr;
-          nextHeapObjectAddr += numBytes;
-          return result;
-        },
+        mono_wasm_object_new: mono_wasm_object_new,
         memory: memory
       },
+      dotnet: globalImportsForTypes,
       static: staticImportThunks
     });
   }
