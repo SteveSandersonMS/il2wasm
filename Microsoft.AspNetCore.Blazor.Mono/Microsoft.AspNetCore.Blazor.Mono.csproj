@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard1.0</TargetFramework>
+    <PackageVersion>0.8.0-preview1-ilwasm-000</PackageVersion>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)..\artifacts</PackageOutputPath>
   </PropertyGroup>
 
   <!-- Pack settings -->
@@ -14,8 +16,6 @@
       </NuspecProperties>
     </PropertyGroup>
   </Target>
-
-  <Import Project="..\Microsoft.AspNetCore.Blazor.BuildTools\BuildToolsExe.props" />
 
   <PropertyGroup>
     <MonoIncomingDir>$(MSBuildThisFileDirectory)incoming\</MonoIncomingDir>
@@ -42,7 +42,7 @@
     <Copy SourceFiles="@(BclItemsToCopy)" DestinationFiles="@(BclItemsToCopy->'$(MonoDistDir)bcl\%(RecursiveDir)%(FileName)%(Extension)')">
       <Output TaskParameter="CopiedFiles" ItemName="_BclFilesCopied" />
     </Copy>
-    <Exec Command="$(BlazorBuildToolsExe) ilwipe -s &quot;$(BclWipeSpecDir.TrimEnd('\'))&quot; -i &quot;$(MonoIncomingDir)bcl&quot; -o &quot;$(MonoDistDir)bcl&quot;" />
+    <!--<Exec Command="$(BlazorBuildToolsExe) ilwipe -s &quot;$(BclWipeSpecDir.TrimEnd('\'))&quot; -i &quot;$(MonoIncomingDir)bcl&quot; -o &quot;$(MonoDistDir)bcl&quot;" />-->
     <Touch Files="@(_BclFilesCopied)" /> <!-- Make incremental builds work -->
   </Target>
 
