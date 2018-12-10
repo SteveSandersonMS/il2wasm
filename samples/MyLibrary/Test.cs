@@ -6,12 +6,7 @@ namespace MyLibrary
     {
         public static int Run(int myArg)
         {
-            for (var i = 0; i < 10; i++)
-            {
-                Console.WriteLine(GetNthPrime(myArg + i));
-            }
-
-            return 0; // person.Age;
+            return GetNthPrime(myArg);
         }
         
         static int GetNthPrime(int n)
