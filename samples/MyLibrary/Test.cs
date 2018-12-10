@@ -6,7 +6,9 @@ namespace MyLibrary
     {
         public static int Run(int myArg)
         {
-            return GetNthPrime(myArg);
+            var result = GetNthPrime(myArg);
+            Console.WriteLine(result); // To show we can call from AOT code into interpreted code
+            return result;
         }
         
         static int GetNthPrime(int n)
