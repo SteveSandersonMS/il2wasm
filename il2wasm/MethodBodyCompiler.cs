@@ -356,7 +356,7 @@ namespace il2wasm
                         }
 
                         // Create heap object of desired type
-                        yield return GetGlobalInstruction(wasmBuilder, $"type:{ctor.DeclaringType.Scope.Name}|{ctor.DeclaringType.FullName}");
+                        yield return GetTypeHandleInstruction(wasmBuilder, ctor.DeclaringType);
                         yield return new Call(wasmBuilder.GetStaticImportIndex("mono_wasm_object_new"));
                         yield return StoreLocalInstruction(functionBuilder, "newObjectAddr");
 
@@ -466,6 +466,11 @@ namespace il2wasm
                 default:
                     throw new ArgumentException($"Unsupported opcode: {ilInstruction.OpCode.Code}");
             }
+        }
+
+        private static Instruction GetTypeHandleInstruction(WasmModuleBuilder wasmBuilder, TypeDefinition typeDefinition)
+        {
+            return GetGlobalInstruction(wasmBuilder, $"type:{typeDefinition.Scope.Name}|{typeDefinition.FullName}");
         }
 
         private static uint GetFieldOffset(Mono.Cecil.FieldDefinition field)

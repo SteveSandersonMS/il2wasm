@@ -154,9 +154,20 @@ namespace il2wasm
         public static string FormatMethodSignature(MethodReference sourceMethod)
         {
             var voidTypeRef = sourceMethod.Module.TypeSystem.Void;
-            var returnType = sourceMethod.ReturnType == voidTypeRef ? "Void" : sourceMethod.ReturnType.ToString();
-            var paramsString = string.Join(", ", sourceMethod.Parameters.Select(p => p.ParameterType.Name));
+            var returnType = FormatParameterType(sourceMethod.ReturnType);
+            var paramsString = string.Join(", ", sourceMethod.Parameters.Select(p => FormatParameterType(p.ParameterType)));
             return $"{returnType} {sourceMethod.Name}({paramsString})";
+        }
+
+        private static string FormatParameterType(TypeReference type)
+        {
+            switch (type.FullName)
+            {
+                // For unclear reasons, certain type names are represented as shorthand, but others aren't
+                case "System.Int32": return "Int32";
+                case "System.Void": return "Void";
+                default: return type.FullName;
+            }
         }
 
         private static string GetAoTMethodJSInteropIdentifier(MethodDefinition sourceMethod)
@@ -179,7 +190,15 @@ namespace il2wasm
                 case "System.Void": return null;
                 case "System.Int32": return WebAssembly.ValueType.Int32;
                 case "System.Boolean": return WebAssembly.ValueType.Int32;
-                default: throw new ArgumentException($"Unsupported .NET type: {dotNetType.FullName}");
+                default:
+                    {
+                        if (dotNetType.IsValueType)
+                        {
+                            throw new ArgumentException($"Unsupported .NET value type: {dotNetType.FullName}");
+                        }
+
+                        return WebAssembly.ValueType.Int32; // Treat as pointer
+                    }
             }
         }
     }
