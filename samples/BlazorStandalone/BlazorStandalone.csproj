@@ -16,10 +16,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Components.Browser" Version="0.8.0-preview1-20181122.3" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Build" Version="0.8.0-preview1-20181122.3" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Browser" Version="0.8.0-preview1-20181126.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Build" Version="0.8.0-preview1-20181126.4" PrivateAssets="all" />
 
-    <DotNetCliToolReference Include="Microsoft.AspNetCore.Blazor.Cli" Version="0.8.0-preview1-20181122.3" />
+    <DotNetCliToolReference Include="Microsoft.AspNetCore.Blazor.Cli" Version="0.8.0-preview1-20181126.4" />
   </ItemGroup>
 
   <ItemGroup>
