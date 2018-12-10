@@ -76,11 +76,18 @@ namespace il2wasm
 
         private static void ReplaceWithJSInteropCall(MethodDefinition sourceMethod)
         {
+            // The goal is to replace the source method's body with:
+            //    return ((MonoWebAssemblyJSRuntime)JSRuntime.Current)
+            //       .InvokeUnmarshalled<T0, T1, T2, TRet>("identifier string", arg0, arg1, arg2);
+            // ... where "identifier string" is computed based on the original source method's name,
+            // so at runtime we can match it up with the AoT equivalent.
+
             var body = sourceMethod.Body;
             var instructions = body.Instructions;
             instructions.Clear();
             body.ExceptionHandlers.Clear();
-            
+
+            var systemObjectTypeRef = sourceMethod.Module.TypeSystem.Object;
             var jsRuntimeRef = sourceMethod.Module.ImportReference(typeof(JSRuntime));
             var ijsRuntimeRef = sourceMethod.Module.ImportReference(typeof(IJSRuntime));
             var monoWebAssemblyJSRuntimeRef = sourceMethod.Module.ImportReference(typeof(MonoWebAssemblyJSRuntime));
@@ -93,34 +100,48 @@ namespace il2wasm
 
             // Identifier
             ilProcessor.Append(
-                ilProcessor.Create(OpCodes.Ldstr, sourceMethod.FullName));
+                ilProcessor.Create(OpCodes.Ldstr, GetAoTMethodJSInteropIdentifier(sourceMethod)));
 
             // Other args
-            for (var i = 0; i < sourceMethod.Parameters.Count; i++)
+            // TODO: Handle methods with 4+ args
+            // Would need to wrap them in an object[] and invoke something that knows to unwrap them
+            if (sourceMethod.Parameters.Count > 3)
             {
-                ilProcessor.Append(
-                    ilProcessor.Create(OpCodes.Ldarg_S, sourceMethod.Parameters[i]));
+                throw new NotImplementedException("Support for methods with > 3 args is not yet implemented.");
             }
-           
+            for (var i = 0; i < 3; i++)
+            {
+                ilProcessor.Append(i < sourceMethod.Parameters.Count
+                    ? ilProcessor.Create(OpCodes.Ldarg_S, sourceMethod.Parameters[i])
+                    : ilProcessor.Create(OpCodes.Ldnull));
+            }
+
             // Create closed-generic method reference
+            var genericReturnType = sourceMethod.ReturnType ?? systemObjectTypeRef;
             var methodRef = new MethodReference(
                 nameof(MonoWebAssemblyJSRuntime.InvokeUnmarshalled),
-                sourceMethod.ReturnType,
+                genericReturnType,
                 monoWebAssemblyJSRuntimeRef);
-            for (var i = 0; i < sourceMethod.Parameters.Count; i++)
+            methodRef.HasThis = true;
+            methodRef.Parameters.Add(new ParameterDefinition(sourceMethod.Module.TypeSystem.String));
+            for (var i = 0; i < 3; i++)
             {
-                methodRef.GenericParameters.Add(
-                    new GenericParameter($"T{i}", methodRef));
+                var genericParam = new GenericParameter($"T{i}", methodRef);
+                methodRef.GenericParameters.Add(genericParam);
+                methodRef.Parameters.Add(new ParameterDefinition(genericParam));
             }
-            methodRef.GenericParameters.Add(
-                new GenericParameter("TRet", methodRef));
+            var returnTypeGenericParam = new GenericParameter("TRet", methodRef);
+            methodRef.GenericParameters.Add(returnTypeGenericParam);
             var genericMethodRef = new GenericInstanceMethod(
                 methodRef);
-            foreach (var p in sourceMethod.Parameters)
+            for (var i = 0; i < 3; i++)
             {
-                genericMethodRef.GenericArguments.Add(p.ParameterType);
+                genericMethodRef.GenericArguments.Add(i < sourceMethod.Parameters.Count
+                    ? sourceMethod.Parameters[i].ParameterType
+                    : systemObjectTypeRef);
             }
-            genericMethodRef.GenericArguments.Add(sourceMethod.ReturnType);
+            genericMethodRef.GenericArguments.Add(genericReturnType);
+            genericMethodRef.ReturnType = returnTypeGenericParam;
 
             // Invoke and return
             ilProcessor.Append(
@@ -128,6 +149,16 @@ namespace il2wasm
             ilProcessor.Append(
                 ilProcessor.Create(OpCodes.Ret));
         }
+
+        private static string GetAoTMethodJSInteropIdentifier(MethodDefinition sourceMethod)
+        {
+            return $"aot.{EncodeDots(sourceMethod.Module.Assembly.Name.Name)}.{EncodeDots(sourceMethod.FullName)}";
+        }
+
+        private static string EncodeDots(string str)
+            // JSInterop treats dots as separators. We want just a two-level hierarchy (assembly, then method),
+            // so avoid unintentional separators by replacing them with something that is unlikely to lead to clashes.
+            => str.Replace(".", "-");
 
         private static WebAssembly.ValueType? ToWebAssemblyType(TypeReference dotNetType)
         {
