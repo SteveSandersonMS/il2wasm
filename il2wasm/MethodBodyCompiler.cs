@@ -353,9 +353,9 @@ namespace il2wasm
                             yield return StoreLocalInstruction(functionBuilder, $"ctorparam{ctor.Parameters.Count - 1 - paramIndex}");
                         }
 
-                        // Allocate memory
-                        yield return new Int32Constant(GetTypeHeapSize(ctor.DeclaringType));
-                        yield return new Call(wasmBuilder.GetStaticImportIndex("malloc"));
+                        // Create heap object of desired type
+                        yield return GetGlobalInstruction(wasmBuilder, $"type:{ctor.DeclaringType.Scope.Name}|{ctor.DeclaringType.FullName}");
+                        yield return new Call(wasmBuilder.GetStaticImportIndex("mono_wasm_object_new"));
                         yield return StoreLocalInstruction(functionBuilder, "newObjectAddr");
 
                         // Invoke constructor
@@ -494,16 +494,6 @@ namespace il2wasm
             return (uint)4; // TODO
         }
 
-        private static uint GetTypeHeapSize(TypeDefinition declaringType)
-        {
-            uint total = 4; // Reserve first 4 bytes for type pointer (not currently implemented)
-            foreach (var typeField in declaringType.Fields)
-            {
-                total += GetTypeStackSize(typeField.FieldType);
-            }
-            return total;
-        }
-
         private static Instruction StoreLocalInstruction(WasmFunctionBuilder functionBuilder, string localName)
         {
             var localIndex = functionBuilder.GetLocalIndex(localName, WebAssembly.ValueType.Int32);
@@ -515,6 +505,13 @@ namespace il2wasm
             // TODO: Determine correct type
             var localIndex = functionBuilder.GetLocalIndex(localName, WebAssembly.ValueType.Int32);
             return new GetLocal(localIndex);
+        }
+
+        private static Instruction GetGlobalInstruction(WasmModuleBuilder moduleBuilder, string globalName)
+        {
+            // TODO: Determine correct type
+            var localIndex = moduleBuilder.GetGlobalIndex(globalName, WebAssembly.ValueType.Int32);
+            return new GetGlobal(localIndex);
         }
     }
 }

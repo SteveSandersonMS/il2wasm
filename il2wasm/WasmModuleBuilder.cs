@@ -10,12 +10,14 @@ namespace il2wasm
         private readonly Module _module = new Module();
         private Dictionary<string, uint> _functionIndicesByName = new Dictionary<string, uint>();
         private SortedDictionary<uint, WasmFunctionBuilder> _functionBuildersByIndex = new SortedDictionary<uint, WasmFunctionBuilder>();
+        private Dictionary<string, uint> _globalsIndicesByName = new Dictionary<string, uint>();
+        private SortedDictionary<uint, (string, WebAssembly.ValueType)> _globalsByIndex = new SortedDictionary<uint, (string, WebAssembly.ValueType)>();
 
         // This has to be read-only, because we need to know how many of them exist before we
         // can assign any function indices
         private readonly IReadOnlyList<StaticFunctionImport> _functionImports = new List<StaticFunctionImport>
         {
-            new StaticFunctionImport("sys", "malloc", WebAssembly.ValueType.Int32, WebAssembly.ValueType.Int32),
+            new StaticFunctionImport("sys", "mono_wasm_object_new", WebAssembly.ValueType.Int32, WebAssembly.ValueType.Int32),
             new StaticFunctionImport("static", "netstandard|System.Console|Void WriteLine(Int32)", null, WebAssembly.ValueType.Int32)
         };
 
@@ -36,6 +38,20 @@ namespace il2wasm
                     Module = functionImport.ModuleName,
                     Field = functionImport.FieldName,
                     TypeIndex = typeIndex
+                });
+            }
+
+            foreach (var (globalIndex, (globalName, valueType)) in _globalsByIndex)
+            {
+                _module.Imports.Add(new Import.Global
+                {
+                    Module = "dotnet",
+                    Field = globalName,
+                    Type = new Global
+                    {
+                        ContentType = valueType,
+                        IsMutable = false
+                    }
                 });
             }
 
@@ -150,6 +166,18 @@ namespace il2wasm
             }
 
             throw new ArgumentException($"No static function import for '{formattedName}'");
+        }
+
+        public uint GetGlobalIndex(string name, WebAssembly.ValueType valueType)
+        {
+            if (!_globalsIndicesByName.TryGetValue(name, out var index))
+            {
+                index = (uint)_globalsByIndex.Count;
+                _globalsByIndex.Add(index, (name, valueType));
+                _globalsIndicesByName.Add(name, index);
+            }
+
+            return index;
         }
     }
 }
