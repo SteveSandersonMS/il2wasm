@@ -8,6 +8,11 @@
       https://dotnet.myget.org/f/blazor-dev/api/v3/index.json;
     </RestoreAdditionalProjectSources>
     <LangVersion>7.3</LangVersion>
+
+    <!-- Calls from AOT code into interpreted code aren't currently compatible with the linker, because the linker doesn't know they exist,
+         so it may strip out the types/methods that AOT code is trying to call. To fix this, need the AOT compiler to generate a linker config
+         that lists all the interpreted methods it imports. -->
+    <BlazorLinkOnBuild>false</BlazorLinkOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
