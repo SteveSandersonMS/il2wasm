@@ -10,6 +10,8 @@ namespace il2wasm
 {
     static class MethodBodyCompiler
     {
+        const int MonoObjectHeaderLength = 8;
+
         private static T RemoveFirstOrDefault<T>(List<T> list)
         {
             if (list.Count > 0)
@@ -468,7 +470,7 @@ namespace il2wasm
 
         private static uint GetFieldOffset(Mono.Cecil.FieldDefinition field)
         {
-            uint offset = 4; // Reserve first 4 bytes for type pointer (not currently implemented)
+            uint offset = MonoObjectHeaderLength; // Skip this many bytes
 
             if (field.Offset >= 0)
             {
