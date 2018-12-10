@@ -6,8 +6,7 @@ namespace il2wasm
 {
     class WasmFunctionBuilder
     {
-        public string Name { get; }
-        public bool Export { get; set; }
+        public string ExportName { get; set; }
         public List<Instruction> Instructions { get; }
         public List<Local> Locals { get; }
         public List<WebAssembly.ValueType> ParameterTypes { get; }
@@ -17,13 +16,12 @@ namespace il2wasm
 
         public WasmFunctionBuilder(string name, WasmModuleBuilder wasmBuilder)
         {
-            Name = name;
             ParameterTypes = new List<WebAssembly.ValueType>();
             Instructions = new List<Instruction>();
             Locals = new List<Local>();
             _localsByName = new Dictionary<string, (uint, WebAssembly.ValueType)>();
 
-            var functionIndex = wasmBuilder.GetOrReserveFunctionIndex(Name);
+            var functionIndex = wasmBuilder.GetOrReserveFunctionIndex(name);
             wasmBuilder.AddFunction(functionIndex, this);
         }
 

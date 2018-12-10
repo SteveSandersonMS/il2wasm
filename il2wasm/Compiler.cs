@@ -50,7 +50,7 @@ namespace il2wasm
             Console.WriteLine($"Compiling { sourceMethod.FullName }...");
             var fn = new WasmFunctionBuilder(sourceMethod.FullName, wasmBuilder)
             {
-                Export = sourceMethod.IsPublic,
+                ExportName = sourceMethod.IsPublic ? $"{sourceMethod.DeclaringType.Name}::{FormatMethodSignature(sourceMethod)}" : null,
                 ResultType = ToWebAssemblyType(sourceMethod.ReturnType)
             };
 
@@ -87,6 +87,7 @@ namespace il2wasm
             instructions.Clear();
             body.ExceptionHandlers.Clear();
 
+            var voidTypeRef = sourceMethod.Module.TypeSystem.Void;
             var systemObjectTypeRef = sourceMethod.Module.TypeSystem.Object;
             var jsRuntimeRef = sourceMethod.Module.ImportReference(typeof(JSRuntime));
             var ijsRuntimeRef = sourceMethod.Module.ImportReference(typeof(IJSRuntime));
@@ -117,7 +118,7 @@ namespace il2wasm
             }
 
             // Create closed-generic method reference
-            var genericReturnType = sourceMethod.ReturnType ?? systemObjectTypeRef;
+            var genericReturnType = sourceMethod.ReturnType == voidTypeRef ? systemObjectTypeRef : sourceMethod.ReturnType;
             var methodRef = new MethodReference(
                 nameof(MonoWebAssemblyJSRuntime.InvokeUnmarshalled),
                 genericReturnType,
@@ -150,9 +151,20 @@ namespace il2wasm
                 ilProcessor.Create(OpCodes.Ret));
         }
 
+        public static string FormatMethodSignature(MethodReference sourceMethod)
+        {
+            var voidTypeRef = sourceMethod.Module.TypeSystem.Void;
+            var returnType = sourceMethod.ReturnType == voidTypeRef ? "Void" : sourceMethod.ReturnType.ToString();
+            var paramsString = string.Join(", ", sourceMethod.Parameters.Select(p => p.ParameterType.Name));
+            return $"{returnType} {sourceMethod.Name}({paramsString})";
+        }
+
         private static string GetAoTMethodJSInteropIdentifier(MethodDefinition sourceMethod)
         {
-            return $"aot.{EncodeDots(sourceMethod.Module.Assembly.Name.Name)}.{EncodeDots(sourceMethod.FullName)}";
+            // Cecil's MethodDefinition and .NET's MethodInfo have different conventions for how they format a method descriptor as a string
+            // Here we attempt to generate a string similar to MethodInfo's convention. This is incomplete (e.g., no generics support)
+            var identifier = FormatMethodSignature(sourceMethod);
+            return $"aot.{EncodeDots(sourceMethod.Module.Assembly.Name.Name)}.{EncodeDots(sourceMethod.DeclaringType.Name + "::" + identifier)}";
         }
 
         private static string EncodeDots(string str)

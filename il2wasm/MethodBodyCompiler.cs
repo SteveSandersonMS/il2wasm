@@ -200,7 +200,7 @@ namespace il2wasm
                                         //       Then here we can call out to the static _mono_invoke_method (or whatever), passing
                                         //       the Mono function ID from the corresponding global as well as the args. That way,
                                         //       the calls don't have to go through JS at all.
-                                        var targetImportIndex = wasmBuilder.GetStaticImportIndex(targetReference.FullName);
+                                        var targetImportIndex = wasmBuilder.GetStaticImportIndex(targetReference);
                                         yield return new Call(targetImportIndex);
                                     }
                                     break;
