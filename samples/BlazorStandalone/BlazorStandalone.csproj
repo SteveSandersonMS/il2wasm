@@ -17,7 +17,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Blazor.Mono" Version="0.8.0-preview1-ilwasm-000" />
+    <PackageReference Include="Microsoft.AspNetCore.Blazor.Mono" Version="0.8.0-preview1-ilwasm-002" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Browser" Version="0.8.0-preview1-20181126.4" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Build" Version="0.8.0-preview1-20181126.4" PrivateAssets="all" />
 

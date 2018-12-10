@@ -277,6 +277,14 @@ class_is_task (MonoClass *klass)
 	return 0;
 }
 
+// -- Begin exports added for il2wasm prototype
+EMSCRIPTEN_KEEPALIVE MonoObject*
+mono_wasm_object_new (MonoClass *klass)
+{
+	return mono_object_new (mono_domain_get (), klass);
+}
+// -- End exports added for il2wasm prototype
+
 #define MARSHAL_TYPE_INT 1
 #define MARSHAL_TYPE_FP 2
 #define MARSHAL_TYPE_STRING 3
