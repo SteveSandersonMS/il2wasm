@@ -6,7 +6,9 @@
   async function instantiateWasmModule(url) {
     const response = await fetch(url);
     const module = await WebAssembly.compileStreaming(response);
-    const memory = new WebAssembly.Memory({ initial: 1 });
+    await monoRuntimeIsReady;
+
+    const memory = Module.wasmMemory; // Share same memory as Mono interpreter
     let nextHeapObjectAddr = 0;
     return await WebAssembly.instantiate(module, {
       sys: {
@@ -15,7 +17,7 @@
           nextHeapObjectAddr += numBytes;
           return result;
         },
-        memory: memory,
+        memory: memory
       },
       static: {
         'System.Void System.Console::WriteLine(System.Int32)': console.log
@@ -37,4 +39,16 @@
       exports[encodeDots(exportName)] = wasmModule.exports[exportName];
     });
   };
+
+  // This is kind of ridiculous, but since there isn't any more straightforward way to hook
+  // into the loading process, poll until it is ready enough
+  const monoRuntimeIsReady = new Promise(resolve => {
+    const intervalHandle = setInterval(() => {
+      if (typeof MONO !== 'undefined' && MONO.mono_wasm_runtime_is_ready) {
+        clearInterval(intervalHandle);
+        console.log('READY');
+        resolve();
+      }
+    }, 10);
+  });
 })();
