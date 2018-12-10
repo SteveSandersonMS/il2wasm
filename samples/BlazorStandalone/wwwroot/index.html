@@ -7,49 +7,15 @@
     <base href="/" />
     <link href="css/bootstrap/bootstrap.min.css" rel="stylesheet" />
     <link href="css/site.css" rel="stylesheet" />
+    <script src="aot-loader.js"></script>
 </head>
 <body>
     <app>Loading...</app>
 
     <script src="_framework/blazor.webassembly.js"></script>
+    
     <script>
-        async function instantiateWasmModule(url) {
-            const response = await fetch(url);
-            const module = await WebAssembly.compileStreaming(response);
-            const memory = new WebAssembly.Memory({ initial: 1 });
-            let nextHeapObjectAddr = 0;
-            return await WebAssembly.instantiate(module, {
-                sys: {
-                malloc: numBytes => {
-                    const result = nextHeapObjectAddr;
-                    nextHeapObjectAddr += numBytes;
-                    return result;
-                },
-                memory: memory,
-                },
-                static: {
-                'System.Void System.Console::WriteLine(System.Int32)': console.log
-                }
-            });
-        }
-
-        function encodeDots(str) {
-            return str.replace(/\./g, '-');
-        }
-
-        async function begin() {
-            const aotAssemblyName = 'MyLibrary';
-            const exports = {};
-            window.aot = window.aot || {};
-            window.aot[encodeDots(aotAssemblyName)] = exports;
-
-            const wasmModule = await instantiateWasmModule(`_framework/wasm/${aotAssemblyName}.wasm`);
-            Object.getOwnPropertyNames(wasmModule.exports).forEach(exportName => {
-                exports[encodeDots(exportName)] = wasmModule.exports[exportName];
-            });
-        }
-
-        begin();
+        loadAotAssembly('MyLibrary');
     </script>
 </body>
 </html>
