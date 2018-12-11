@@ -41,7 +41,7 @@ namespace MyLibrary
 
         static bool IsPrime(int value)
         {
-            for (var possibleDivisor = 2; possibleDivisor < value; possibleDivisor++)
+            for (var possibleDivisor = 2; possibleDivisor * possibleDivisor <= value; possibleDivisor++)
             {
                 if ((value % possibleDivisor) == 0)
                 {

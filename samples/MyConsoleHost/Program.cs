@@ -9,7 +9,7 @@ namespace MyConsoleHost
             for (var i = 0; i < 10; i++)
             {
                 var startTime = DateTime.Now;
-                var result = MyLibrary.Test.RunComputation(2000);
+                var result = MyLibrary.Test.RunComputation(10000);
                 var duration = DateTime.Now.Subtract(startTime).TotalMilliseconds;
                 Console.WriteLine($"Result: {result}; Duration: {duration}ms");
             }
