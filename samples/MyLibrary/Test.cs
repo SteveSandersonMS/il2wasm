@@ -4,7 +4,7 @@ namespace MyLibrary
 {
     public static class Test
     {
-        public static int Run(int myArg)
+        public static int RunComputation(int myArg)
         {
             var result = GetNthPrime(myArg);
             Console.WriteLine(result); // To show we can call from AOT code into interpreted code
