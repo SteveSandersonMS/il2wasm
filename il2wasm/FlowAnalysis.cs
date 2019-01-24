@@ -43,6 +43,10 @@ namespace il2wasm
                 case Code.Bgt_S:
                 case Code.Blt:
                 case Code.Blt_S:
+                case Code.Bge:
+                case Code.Bge_S:
+                case Code.Ble:
+                case Code.Ble_S:
                     jumpTargets = new[] { (Instruction)instruction.Operand };
                     return true;
                 case Code.Switch:

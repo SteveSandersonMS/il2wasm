@@ -170,6 +170,13 @@ namespace il2wasm
                         yield return new BranchIf(breakFromBlockDepth);
                         break;
                     }
+                case CILCode.Ble_S:
+                    {
+                        var breakFromBlockDepth = getBreakDepth((Mono.Cecil.Cil.Instruction)ilInstruction.Operand);
+                        yield return new Int32LessThanOrEqualSigned();
+                        yield return new BranchIf(breakFromBlockDepth);
+                        break;
+                    }
                 case CILCode.Call:
                 case CILCode.Callvirt: // TODO: Implement Callvirt properly (do actual virtual dispatch)
                     {

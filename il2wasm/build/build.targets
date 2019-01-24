@@ -1,6 +1,6 @@
 ﻿<Project>
   <PropertyGroup>
-    <Il2WasmExe>$(MSBuildThisFileDirectory)..\bin\Debug\netcoreapp2.1\il2wasm.dll</Il2WasmExe>
+    <Il2WasmExe>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\netcoreapp2.1\il2wasm.dll</Il2WasmExe>
   </PropertyGroup>
     
   <Target Name="RunAoTCompile" BeforeTargets="_CopyFilesMarkedCopyLocal">
