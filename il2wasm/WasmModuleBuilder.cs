@@ -10,13 +10,15 @@ namespace il2wasm
         private readonly Module _module = new Module();
         private Dictionary<string, uint> _functionIndicesByName = new Dictionary<string, uint>();
         private SortedDictionary<uint, WasmFunctionBuilder> _functionBuildersByIndex = new SortedDictionary<uint, WasmFunctionBuilder>();
+        private Dictionary<string, uint> _globalsIndicesByName = new Dictionary<string, uint>();
+        private SortedDictionary<uint, (string, WebAssembly.ValueType)> _globalsByIndex = new SortedDictionary<uint, (string, WebAssembly.ValueType)>();
 
         // This has to be read-only, because we need to know how many of them exist before we
         // can assign any function indices
         private readonly IReadOnlyList<StaticFunctionImport> _functionImports = new List<StaticFunctionImport>
         {
-            new StaticFunctionImport("sys", "malloc", WebAssembly.ValueType.Int32, WebAssembly.ValueType.Int32),
-            new StaticFunctionImport("static", "System.Void System.Console::WriteLine(System.Int32)", null, WebAssembly.ValueType.Int32)
+            new StaticFunctionImport("sys", "mono_wasm_object_new", WebAssembly.ValueType.Int32, WebAssembly.ValueType.Int32),
+            new StaticFunctionImport("static", "netstandard|System.Console|Void WriteLine(Int32)", null, WebAssembly.ValueType.Int32)
         };
 
         public Module ToModule()
@@ -39,6 +41,20 @@ namespace il2wasm
                 });
             }
 
+            foreach (var (globalIndex, (globalName, valueType)) in _globalsByIndex)
+            {
+                _module.Imports.Add(new Import.Global
+                {
+                    Module = "dotnet",
+                    Field = globalName,
+                    Type = new Global
+                    {
+                        ContentType = valueType,
+                        IsMutable = false
+                    }
+                });
+            }
+
             foreach (var (fnIndex, fnBuilder) in _functionBuildersByIndex)
             {
                 var typeIndex = AddType(fnBuilder.ParameterTypes, fnBuilder.ResultType);
@@ -50,11 +66,11 @@ namespace il2wasm
                     Locals = fnBuilder.Locals,
                 });
 
-                if (fnBuilder.Export)
+                if (fnBuilder.ExportName != null)
                 {
                     _module.Exports.Add(new Export
                     {
-                        Name = fnBuilder.Name,
+                        Name = fnBuilder.ExportName,
                         Kind = ExternalKind.Function,
                         Index = fnIndex
                     });
@@ -131,17 +147,37 @@ namespace il2wasm
             return index;
         }
 
-        public uint GetStaticImportIndex(string fullName)
+        public uint GetStaticImportIndex(Mono.Cecil.MethodReference methodReference)
+        {
+            var assemblyName = methodReference.DeclaringType.Scope.Name; // Not 100% certain this is correct, but does return 'netstandard' when I expect it to
+            var declaringType = methodReference.DeclaringType;
+            var formattedName = $"{assemblyName}|{declaringType.Namespace}.{declaringType.Name}|{Compiler.FormatMethodSignature(methodReference)}";
+            return GetStaticImportIndex(formattedName);
+        }
+
+        public uint GetStaticImportIndex(string formattedName)
         {
             for (var i = 0; i < _functionImports.Count; i++)
             {
-                if (_functionImports[i].FieldName == fullName)
+                if (_functionImports[i].FieldName == formattedName)
                 {
                     return (uint)i;
                 }
             }
 
-            throw new ArgumentException($"No static function import for '{fullName}'");
+            throw new ArgumentException($"No static function import for '{formattedName}'");
+        }
+
+        public uint GetGlobalIndex(string name, WebAssembly.ValueType valueType)
+        {
+            if (!_globalsIndicesByName.TryGetValue(name, out var index))
+            {
+                index = (uint)_globalsByIndex.Count;
+                _globalsByIndex.Add(index, (name, valueType));
+                _globalsIndicesByName.Add(name, index);
+            }
+
+            return index;
         }
     }
 }

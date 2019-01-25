@@ -1,4 +1,5 @@
 ﻿@page "/primes"
+@using MyLibrary
 
 <h1>Primes</h1>
 
@@ -19,13 +20,9 @@
     void Compute()
     {
         var start = DateTime.Now;
-
-        // TODO: Implement build mechanism such that, if the <ProjectReference> to MyLibrary
-        // has an "aot" flag, then we run the AOT compiler for it, and generate a wrapper .NET
-        // assembly that contains the JSInterop calls to the .wasm.
-        var result = MyLibrary.Test.Run(n);
-
+        var result = Test.RunComputation(n);
         var duration = (DateTime.Now - start).TotalMilliseconds;
+
         log += $"\nThe {n}th prime is: {result} (time: {duration}ms)";
     }
 }

@@ -10,6 +10,8 @@ namespace il2wasm
 {
     static class MethodBodyCompiler
     {
+        const int MonoObjectHeaderLength = 8;
+
         private static T RemoveFirstOrDefault<T>(List<T> list)
         {
             if (list.Count > 0)
@@ -168,6 +170,13 @@ namespace il2wasm
                         yield return new BranchIf(breakFromBlockDepth);
                         break;
                     }
+                case CILCode.Ble_S:
+                    {
+                        var breakFromBlockDepth = getBreakDepth((Mono.Cecil.Cil.Instruction)ilInstruction.Operand);
+                        yield return new Int32LessThanOrEqualSigned();
+                        yield return new BranchIf(breakFromBlockDepth);
+                        break;
+                    }
                 case CILCode.Call:
                 case CILCode.Callvirt: // TODO: Implement Callvirt properly (do actual virtual dispatch)
                     {
@@ -200,7 +209,7 @@ namespace il2wasm
                                         //       Then here we can call out to the static _mono_invoke_method (or whatever), passing
                                         //       the Mono function ID from the corresponding global as well as the args. That way,
                                         //       the calls don't have to go through JS at all.
-                                        var targetImportIndex = wasmBuilder.GetStaticImportIndex(targetReference.FullName);
+                                        var targetImportIndex = wasmBuilder.GetStaticImportIndex(targetReference);
                                         yield return new Call(targetImportIndex);
                                     }
                                     break;
@@ -353,9 +362,9 @@ namespace il2wasm
                             yield return StoreLocalInstruction(functionBuilder, $"ctorparam{ctor.Parameters.Count - 1 - paramIndex}");
                         }
 
-                        // Allocate memory
-                        yield return new Int32Constant(GetTypeHeapSize(ctor.DeclaringType));
-                        yield return new Call(wasmBuilder.GetStaticImportIndex("malloc"));
+                        // Create heap object of desired type
+                        yield return GetTypeHandleInstruction(wasmBuilder, ctor.DeclaringType);
+                        yield return new Call(wasmBuilder.GetStaticImportIndex("mono_wasm_object_new"));
                         yield return StoreLocalInstruction(functionBuilder, "newObjectAddr");
 
                         // Invoke constructor
@@ -466,9 +475,14 @@ namespace il2wasm
             }
         }
 
+        private static Instruction GetTypeHandleInstruction(WasmModuleBuilder wasmBuilder, TypeDefinition typeDefinition)
+        {
+            return GetGlobalInstruction(wasmBuilder, $"type:{typeDefinition.Scope.Name}|{typeDefinition.FullName}");
+        }
+
         private static uint GetFieldOffset(Mono.Cecil.FieldDefinition field)
         {
-            uint offset = 4; // Reserve first 4 bytes for type pointer (not currently implemented)
+            uint offset = MonoObjectHeaderLength; // Skip this many bytes
 
             if (field.Offset >= 0)
             {
@@ -494,16 +508,6 @@ namespace il2wasm
             return (uint)4; // TODO
         }
 
-        private static uint GetTypeHeapSize(TypeDefinition declaringType)
-        {
-            uint total = 4; // Reserve first 4 bytes for type pointer (not currently implemented)
-            foreach (var typeField in declaringType.Fields)
-            {
-                total += GetTypeStackSize(typeField.FieldType);
-            }
-            return total;
-        }
-
         private static Instruction StoreLocalInstruction(WasmFunctionBuilder functionBuilder, string localName)
         {
             var localIndex = functionBuilder.GetLocalIndex(localName, WebAssembly.ValueType.Int32);
@@ -515,6 +519,13 @@ namespace il2wasm
             // TODO: Determine correct type
             var localIndex = functionBuilder.GetLocalIndex(localName, WebAssembly.ValueType.Int32);
             return new GetLocal(localIndex);
+        }
+
+        private static Instruction GetGlobalInstruction(WasmModuleBuilder moduleBuilder, string globalName)
+        {
+            // TODO: Determine correct type
+            var localIndex = moduleBuilder.GetGlobalIndex(globalName, WebAssembly.ValueType.Int32);
+            return new GetGlobal(localIndex);
         }
     }
 }

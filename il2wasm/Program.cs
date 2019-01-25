@@ -5,21 +5,21 @@ namespace il2wasm
 {
     class Program
     {
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
-            // CWD is inconsistent between VS and `dotnet run` :(
-            // See https://github.com/dotnet/project-system/issues/3619
-            // Try VS way first: cwd is .exe file location
-            var root = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "samples"));
-            if (!Directory.Exists(root))
+            if (args.Length < 3)
             {
-                // If dir doesn't exist, try `dotnet run` way: cwd is .csproj location
-                root = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "samples"));
+                Console.Error.WriteLine($"Usage: dotnet exec {args[0]} -- <sourceassembly> <outputdirectory>");
+                return 1;
             }
-            var source = Path.Combine(root, "MyLibrary", "bin", "Debug", "netstandard2.0", "MyLibrary.dll");
-            var dest = Path.Combine(root, "MyWebHost", "wwwroot", "MyLibrary.wasm");
 
-            Compiler.Compile(source, dest);
+            var source = args[1];
+            var destDir = args[2];
+
+            Directory.CreateDirectory(destDir);
+            Compiler.Compile(source, destDir);
+
+            return 0;
         }
     }
 }

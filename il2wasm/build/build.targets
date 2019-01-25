@@ -1,0 +1,43 @@
+﻿<Project>
+  <PropertyGroup>
+    <Il2WasmExe>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\netcoreapp2.1\il2wasm.dll</Il2WasmExe>
+  </PropertyGroup>
+    
+  <Target Name="RunAoTCompile" BeforeTargets="_CopyFilesMarkedCopyLocal">
+    <ItemGroup>
+      <_AotAssemblies
+        Include="@(ReferenceCopyLocalPaths)"
+        Condition="'%(Extension)' == '.dll' AND '%(ReferenceCopyLocalPaths.AotCompile)' == 'true'">
+        <AotOutputDir>$(IntermediateOutputPath)il2wasm</AotOutputDir>
+        <AotWasmPath>$(IntermediateOutputPath)il2wasm\%(FileName).wasm</AotWasmPath>
+        <AotDllPath>$(IntermediateOutputPath)il2wasm\%(FileName).dll</AotDllPath>
+      </_AotAssemblies>
+    </ItemGroup>
+    <Exec
+      Condition="'%(_AotAssemblies.Identity)' != ''"
+      Command="dotnet exec &quot;$(Il2WasmExe)&quot; -- &quot;%(_AotAssemblies.Identity)&quot; &quot;%(_AotAssemblies.AotOutputDir)&quot;" />
+  
+    <ItemGroup>
+      <ReferenceCopyLocalPaths Remove="@(_AotAssemblies)" />
+      <ReferenceCopyLocalPaths Include="@(_AotAssemblies->'%(AotWasmPath)')" />
+      <ReferenceCopyLocalPaths Include="@(_AotAssemblies->'%(AotDllPath)')" />
+    </ItemGroup>
+  </Target>
+
+  <!-- During Blazor builds, copies the AoT .wasm files into dist/_framework/wasm/ -->
+  <Target Name="IncludeAotInBlazorOutputs" BeforeTargets="_PrepareBlazorOutputConfiguration">
+    <ItemGroup>
+      <_AotWasmFile Include="@(_AotAssemblies->'%(AotWasmPath)')" />
+    </ItemGroup>
+    <ItemGroup>
+      <BlazorItemOutput Include="@(_AotWasmFile)">
+        <TargetOutputPath>$(TargetDir)$(BaseBlazorRuntimeWasmOutputPath)%(FileName)%(Extension)</TargetOutputPath>
+        <Type>WebAssembly</Type>
+        <IsStatic>true</IsStatic>
+      </BlazorItemOutput>
+    </ItemGroup>
+  </Target>
+
+  <!-- TODO: Also update the generated Blazor boot JSON file to list all the AoTed .wasm files -->
+  
+</Project>

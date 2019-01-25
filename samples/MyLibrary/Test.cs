@@ -4,14 +4,11 @@ namespace MyLibrary
 {
     public static class Test
     {
-        public static int Run(int myArg)
+        public static int RunComputation(int myArg)
         {
-            for (var i = 0; i < 10; i++)
-            {
-                Console.WriteLine(GetNthPrime(myArg + i));
-            }
-
-            return 0; // person.Age;
+            var result = GetNthPrime(myArg);
+            Console.WriteLine(result); // To show we can call from AOT code into interpreted code
+            return result;
         }
         
         static int GetNthPrime(int n)
@@ -44,7 +41,7 @@ namespace MyLibrary
 
         static bool IsPrime(int value)
         {
-            for (var possibleDivisor = 2; possibleDivisor < value; possibleDivisor++)
+            for (var possibleDivisor = 2; possibleDivisor * possibleDivisor <= value; possibleDivisor++)
             {
                 if ((value % possibleDivisor) == 0)
                 {

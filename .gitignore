@@ -4,3 +4,4 @@ obj/
 samples/MyWebHost/wwwroot/*.wasm
 *.user
 .vscode/
+artifacts/
